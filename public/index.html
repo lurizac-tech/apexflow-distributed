@@ -3,297 +3,335 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ApexFlow | SaaS Dental Cloud</title>
+    <title>ApexFlow Distributed</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <header class="topbar">
-        <div class="topbar-inner">
-          <div class="brand">
-            <div class="brand-mark">A</div>
-            <div class="brand-copy">
-              <h1>ApexFlow</h1>
-              <span>SaaS Dental Cloud</span>
-            </div>
-          </div>
+    <div id="auth-shell" class="auth-shell">
+      <div class="auth-card">
+        <span class="eyebrow auth-eyebrow">Acceso seguro</span>
+        <h2>Inicia sesión en ApexFlow</h2>
+        <p>Autenticación JWT para acceder al monitor, la agenda y la evaluación de desempeño.</p>
 
-          <div class="header-actions">
-            <button id="logoutBtn" class="ghost-btn hidden" type="button">Cerrar sesión</button>
-            <div class="status-badge">
-              <span class="status-dot"></span>
-              Sesión activa
-            </div>
+        <form id="login-form" class="login-form">
+          <label for="email">Correo</label>
+          <input id="email" type="email" value="admin@apexflow.com" required />
+
+          <label for="password">Contraseña</label>
+          <input id="password" type="password" value="admin123" required />
+
+          <button type="submit" class="primary-button">Entrar al dashboard</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="app-shell" class="page-shell hidden">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark">
+            <span>AF</span>
           </div>
+          <div class="brand-copy">
+            <h1>ApexFlow Distributed</h1>
+            <p>Coordinación clínica en tiempo real</p>
+          </div>
+        </div>
+
+        <div class="status-cluster" aria-label="Estado de nodos">
+          <div id="current-user-pill" class="status-pill online">
+            <span class="dot"></span>
+            Usuario: <span id="user-name">Invitado</span>
+          </div>
+          <div class="status-pill online">
+            <span class="dot"></span>
+            Gateway: ONLINE
+          </div>
+          <div class="status-pill online">
+            <span class="dot"></span>
+            Citas-NodeA: ONLINE
+          </div>
+          <div class="status-pill active">
+            <span class="dot pulse"></span>
+            Worker-Threads: ACTIVE
+          </div>
+          <button id="logout-button" class="logout-button hidden" type="button">Cerrar sesión</button>
         </div>
       </header>
 
-      <main class="main-layout">
-        <section class="login-card" id="loginCard">
-          <div class="auth-panel single-auth-panel">
-            <div class="auth-box minimal-auth-box">
-              <div class="auth-header minimal-header">
-                <div class="brand-mark compact-brand">A</div>
-                <h3>Iniciar sesión</h3>
-                <p>Accede a tu panel de trabajo</p>
+      <main class="dashboard">
+        <nav class="tabs" aria-label="Navegación del sistema">
+          <button class="tab-button active" data-target="appointment">Agendar Cita</button>
+          <button class="tab-button" data-target="monitor">Monitor de Hilos &amp; Nodos</button>
+          <button class="tab-button" data-target="performance">Evaluación de Desempeño</button>
+        </nav>
+
+        <section class="tab-panel active" id="appointment">
+          <div class="hero-card">
+            <div class="hero-copy">
+              <span class="eyebrow">Operación clínica distribuida</span>
+              <h2>Agendar cita con coordinación inteligente</h2>
+              <p>
+                Sistema de reserva conectado a nodos de atención, gestión de tiempos y
+                sincronización de servicios de salud.
+              </p>
+            </div>
+
+            <div class="mini-summary">
+              <div>
+                <strong>08</strong>
+                <span>Especialistas activos</span>
+              </div>
+              <div>
+                <strong>96%</strong>
+                <span>Disponibilidad</span>
+              </div>
+              <div>
+                <strong>2.4s</strong>
+                <span>Latencia promedio</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="content-grid two-columns">
+            <div class="panel glass-panel">
+              <div class="panel-header">
+                <h3>Reservar nueva cita</h3>
+                <span class="panel-tag success">Sincrónico</span>
               </div>
 
-              <form id="loginForm" class="form-grid minimal-form-grid">
-                <div class="field">
-                  <label for="email">Correo electrónico</label>
-                  <input id="email" type="email" placeholder="usuario@apexflow.com" />
+              <form class="booking-form">
+                <div class="field-group">
+                  <label for="doctor">Especialista</label>
+                  <select id="doctor">
+                    <option>Dra. Ana Gómez</option>
+                    <option>Dr. Javier Torres</option>
+                    <option>Dra. Sofía Ramírez</option>
+                    <option>Dr. Mateo Ruiz</option>
+                  </select>
                 </div>
 
-                <div class="field">
-                  <label for="password">Contraseña</label>
-                  <input id="password" type="password" placeholder="••••••••" />
+                <div class="field-group">
+                  <label for="specialty">Especialidad</label>
+                  <select id="specialty">
+                    <option>Endodoncia</option>
+                    <option>Ortodoncia</option>
+                    <option>Implantología</option>
+                    <option>Rehabilitación</option>
+                  </select>
                 </div>
 
-                <button type="submit" class="primary-btn full-width-btn">Ingresar</button>
+                <div class="field-row">
+                  <div class="field-group">
+                    <label for="date">Fecha</label>
+                    <input id="date" type="date" value="2026-09-22" />
+                  </div>
+
+                  <div class="field-group">
+                    <label for="time">Horario</label>
+                    <select id="time">
+                      <option>09:30</option>
+                      <option>10:15</option>
+                      <option>11:45</option>
+                      <option>13:20</option>
+                      <option>15:10</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label for="patient">Paciente</label>
+                  <input id="patient" type="text" value="María López" />
+                </div>
+
+                <div class="field-group">
+                  <label for="notes">Motivo de consulta</label>
+                  <textarea id="notes">Revisión general y limpieza profesional.</textarea>
+                </div>
+
+                <button type="button" class="primary-button">Confirmar reserva</button>
               </form>
+            </div>
+
+            <div class="panel glass-panel compact-panel">
+              <div class="panel-header">
+                <h3>Resumen de servicio</h3>
+                <span class="panel-tag neutral">Agenda</span>
+              </div>
+
+              <div class="summary-stack">
+                <div class="summary-item">
+                  <span class="label">Nodo asignado</span>
+                  <strong>Citas-NodeA</strong>
+                </div>
+                <div class="summary-item">
+                  <span class="label">Disponibilidad</span>
+                  <strong>4 espacios libres</strong>
+                </div>
+                <div class="summary-item">
+                  <span class="label">Prioridad</span>
+                  <strong>Alta</strong>
+                </div>
+                <div class="summary-item">
+                  <span class="label">Próxima sincronización</span>
+                  <strong>00:22:58</strong>
+                </div>
+              </div>
+
+              <div class="calendar-mini">
+                <div class="calendar-header">
+                  <span>Semana</span>
+                  <strong>22 - 28 Sep</strong>
+                </div>
+                <div class="calendar-grid">
+                  <span class="day active">L</span>
+                  <span class="day">M</span>
+                  <span class="day">X</span>
+                  <span class="day active">J</span>
+                  <span class="day">V</span>
+                  <span class="day">S</span>
+                  <span class="day">D</span>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        <section class="workspace" id="workspace">
-          <div class="api-gateway-banner" id="jwtFlowCard">
-            <div>
-              <span class="gateway-kicker">Patrón API Gateway</span>
-              <h4>Flujo de autenticación JWT</h4>
-            </div>
-            <div class="token-box">Authorization: Bearer <span id="jwtTokenPreview">sin token activo</span></div>
-          </div>
-
-          <div class="queue-panel" id="queuePanel">
-            <div class="queue-header">
-              <span class="gateway-kicker">Patrón Queue-Based</span>
-              <h4>Cola de mensajes</h4>
-            </div>
-            <ul id="queueList" class="queue-list">
-              <li>Sin mensajes en cola.</li>
-            </ul>
-          </div>
-
-          <div class="nav-tabs">
-            <button class="tab-btn active" data-tab="agenda">Agendar Cita</button>
-            <button class="tab-btn" data-tab="citas">Mis Citas</button>
-            <button class="tab-btn" data-tab="historial">Historial Clínico</button>
-            <button class="tab-btn" data-tab="admin">Administración</button>
-          </div>
-
-          <div class="tab-panel active" id="agenda-panel">
-            <div class="panel-grid">
-              <div class="card">
-                <h4>Reservar nueva cita</h4>
-
-                <div class="field-row">
-                  <div class="field">
-                    <label>Odontólogo</label>
-                    <select>
-                      <option>Dra. Ana Gómez</option>
-                      <option>Dr. Javier Torres</option>
-                      <option>Dra. Sofía Ramírez</option>
-                    </select>
-                  </div>
-
-                  <div class="field">
-                    <label>Especialidad</label>
-                    <select>
-                      <option>Endodoncia</option>
-                      <option>Ortodoncia</option>
-                      <option>Implantología</option>
-                      <option>Estética</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="field-row" style="margin-top: 16px;">
-                  <div class="field">
-                    <label>Fecha</label>
-                    <input type="date" value="2026-09-12" />
-                  </div>
-
-                  <div class="field">
-                    <label>Hora disponible</label>
-                    <select>
-                      <option>09:30 AM</option>
-                      <option>10:15 AM</option>
-                      <option>11:00 AM</option>
-                      <option>12:45 PM</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="action-row">
-                  <button class="primary-btn">Confirmar Reserva</button>
-                </div>
+        <section class="tab-panel" id="monitor">
+          <div class="content-grid three-columns">
+            <div class="panel glass-panel">
+              <div class="panel-header">
+                <h3>Estado de nodos</h3>
+                <span class="panel-tag success">Healthy</span>
               </div>
 
-              <div class="card">
-                <h4>Resumen</h4>
-                <div class="field">
-                  <label>Paciente</label>
-                  <input type="text" value="María López" />
+              <div class="node-list">
+                <div class="node-card online">
+                  <div class="node-header">
+                    <span class="node-name">Gateway</span>
+                    <span class="node-status">ONLINE</span>
+                  </div>
+                  <div class="node-metric">Uptime 99.98%</div>
+                  <div class="meter">
+                    <span style="width: 98%"></span>
+                  </div>
                 </div>
 
-                <div class="field" style="margin-top: 14px;">
-                  <label>Motivo</label>
-                  <textarea>Revisión general y limpieza profesional.</textarea>
+                <div class="node-card online">
+                  <div class="node-header">
+                    <span class="node-name">Citas-NodeA</span>
+                    <span class="node-status">ONLINE</span>
+                  </div>
+                  <div class="node-metric">Queue 14 req/min</div>
+                  <div class="meter">
+                    <span style="width: 86%"></span>
+                  </div>
+                </div>
+
+                <div class="node-card active">
+                  <div class="node-header">
+                    <span class="node-name">Worker-Threads</span>
+                    <span class="node-status">ACTIVE</span>
+                  </div>
+                  <div class="node-metric">8/10 workers running</div>
+                  <div class="meter">
+                    <span style="width: 82%"></span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="tab-panel" id="citas-panel">
-            <div class="card">
-              <h4>Mis citas</h4>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Doctor</th>
-                      <th>Fecha</th>
-                      <th>Hora</th>
-                      <th>Servicio</th>
-                      <th>Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Dra. Ana Gómez</td>
-                      <td>12 Sep 2026</td>
-                      <td>09:30 AM</td>
-                      <td>Revisión</td>
-                      <td><span class="status-pill status-confirmed">Confirmada</span></td>
-                    </tr>
-                    <tr>
-                      <td>Dr. Luis Ramírez</td>
-                      <td>18 Sep 2026</td>
-                      <td>12:45 PM</td>
-                      <td>Implantología</td>
-                      <td><span class="status-pill status-cancelled">Cancelada</span></td>
-                    </tr>
-                    <tr>
-                      <td>Dra. Sofía Morales</td>
-                      <td>20 Sep 2026</td>
-                      <td>11:00 AM</td>
-                      <td>Ortodoncia</td>
-                      <td><span class="status-pill status-confirmed">Confirmada</span></td>
-                    </tr>
-                  </tbody>
-                </table>
+            <div class="panel glass-panel">
+              <div class="panel-header">
+                <h3>Pool de trabajadores</h3>
+                <span class="panel-tag neutral">Parallel</span>
+              </div>
+
+              <div class="thread-grid">
+                <div class="thread-item"><span></span>Scheduler</div>
+                <div class="thread-item"><span></span>Notifier</div>
+                <div class="thread-item"><span></span>Queue</div>
+                <div class="thread-item"><span></span>Audit</div>
+                <div class="thread-item"><span></span>Sync</div>
+                <div class="thread-item"><span></span>Worker 06</div>
               </div>
             </div>
-          </div>
 
-          <div class="tab-panel" id="historial-panel">
-            <div class="history-dashboard">
-              <div class="history-header">
+            <div class="panel glass-panel">
+              <div class="panel-header">
+                <h3>Throughput</h3>
+                <span class="panel-tag success">+18.4%</span>
+              </div>
+
+              <div class="chart-bars" aria-label="gráfico de carga">
+                <span style="height: 30%"></span>
+                <span style="height: 42%"></span>
+                <span style="height: 55%"></span>
+                <span style="height: 62%"></span>
+                <span style="height: 72%"></span>
+                <span style="height: 84%"></span>
+                <span style="height: 92%"></span>
+              </div>
+
+              <div class="small-metrics">
                 <div>
-                  <span class="gateway-kicker">Historial clínico</span>
-                  <h4>Panel de evolución</h4>
+                  <strong>1.9k</strong>
+                  <span>req/min</span>
                 </div>
-              </div>
-
-              <div class="history-summary" id="historialSummary">
-                <div class="summary-card accent">
-                  <span class="summary-label">Notas registradas</span>
-                  <strong>0</strong>
-                </div>
-                <div class="summary-card">
-                  <span class="summary-label">Última revisión</span>
-                  <strong>Sin registros</strong>
-                </div>
-                <div class="summary-card">
-                  <span class="summary-label">Paciente activo</span>
-                  <strong>—</strong>
-                </div>
-              </div>
-
-              <div class="panel-grid history-grid">
-                <div class="card">
-                  <h4>Registro clínico</h4>
-
-                  <div class="field-row">
-                    <div class="field">
-                      <label>Paciente</label>
-                      <input id="historialPaciente" type="text" value="María López" />
-                    </div>
-
-                    <div class="field">
-                      <label>Diagnóstico</label>
-                      <input id="historialDiagnostico" type="text" value="Gingivitis leve" />
-                    </div>
-                  </div>
-
-                  <div class="field" style="margin-top: 16px;">
-                    <label>Observaciones médicas</label>
-                    <textarea id="historialObservaciones">Se observa ligera inflamación gingival en zona inferior. Se recomienda profilaxis y control en 30 días.</textarea>
-                  </div>
-
-                  <div class="action-row">
-                    <button id="guardarDiagnosticoBtn" class="secondary-btn" type="button">Guardar Diagnóstico</button>
-                  </div>
-                </div>
-
-                <div class="card">
-                  <h4>Evolución del paciente</h4>
-                  <div class="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Fecha</th>
-                          <th>Paciente</th>
-                          <th>Diagnóstico</th>
-                          <th>Odontólogo</th>
-                          <th>Observación</th>
-                        </tr>
-                      </thead>
-                      <tbody id="historialTableBody">
-                        <tr>
-                          <td colspan="5">Sin registros clínicos disponibles.</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                <div>
+                  <strong>182ms</strong>
+                  <span>latencia</span>
                 </div>
               </div>
             </div>
           </div>
+        </section>
 
-          <div class="tab-panel" id="admin-panel">
-            <div class="card admin-card">
-              <div class="admin-header">
-                <div>
-                  <h4>Panel de administrador</h4>
-                  <p>Supervisión de citas, estados y gestión operativa.</p>
-                </div>
-                <button class="primary-btn" id="refreshAdminBtn">Actualizar</button>
+        <section class="tab-panel" id="performance">
+          <div class="panel glass-panel benchmark-panel">
+            <div class="panel-header benchmark-header">
+              <div>
+                <span class="eyebrow">Carga concurrente</span>
+                <h3>Evaluación de desempeño</h3>
+              </div>
+              <button id="benchmark-button" class="primary-button" type="button">
+                Ejecutar Prueba de Carga Concurrente (200 req/s)
+              </button>
+            </div>
+
+            <div class="metrics-grid">
+              <article class="metric-card accent-blue">
+                <span class="metric-label">Latencia p95</span>
+                <strong class="metric-value" data-metric="latency">145 ms</strong>
+              </article>
+
+              <article class="metric-card accent-green">
+                <span class="metric-label">Tiempo inter-nodo</span>
+                <strong class="metric-value" data-metric="internode">18 ms</strong>
+              </article>
+
+              <article class="metric-card accent-navy">
+                <span class="metric-label">Tasa de éxito</span>
+                <strong class="metric-value" data-metric="success">99.2%</strong>
+              </article>
+            </div>
+
+            <div class="performance-visuals">
+              <div class="line-chart" aria-label="gráfico de resultados de pruebas">
+                <span class="line line-a"></span>
+                <span class="line line-b"></span>
+                <span class="line line-c"></span>
               </div>
 
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Paciente</th>
-                      <th>Doctor</th>
-                      <th>Fecha</th>
-                      <th>Hora</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colspan="6">Cargando citas...</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="legend-box">
+                <div><span class="legend-swatch blue"></span>Gateway</div>
+                <div><span class="legend-swatch green"></span>Workers</div>
+                <div><span class="legend-swatch navy"></span>NodeSync</div>
               </div>
             </div>
           </div>
         </section>
       </main>
+    </div>
 
     </div>
 

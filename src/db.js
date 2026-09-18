@@ -1,10 +1,11 @@
 const { Pool } = require('pg');
 
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/apexflow';
+const useExternalSsl = Boolean(process.env.DATABASE_URL) || process.env.NODE_ENV === 'production';
 
 const db = new Pool({
   connectionString,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: useExternalSsl ? { rejectUnauthorized: false } : false
 });
 
 async function run(sql, params = []) {
@@ -42,21 +43,22 @@ async function ensureSeedUsers() {
   const byRole = Object.fromEntries(totals.map((row) => [row.role, Number(row.total)]));
 
   const defaultUsers = [
-    ['Admin ApexFlow', 'admin1@apexflow.com', 'admin123', 'admin'],
-    ['Admin Operaciones', 'admin2@apexflow.com', 'admin456', 'admin'],
-    ['Admin Financiero', 'admin3@apexflow.com', 'admin789', 'admin'],
-    ['Admin Soporte', 'admin4@apexflow.com', 'admin101', 'admin'],
-    ['Admin Calidad', 'admin5@apexflow.com', 'admin202', 'admin'],
+    ['Admin ApexFlow', 'admin@apexflow.com', 'admin123', 'admin'],
+    ['Paciente Demo', 'paciente@apexflow.com', 'paciente123', 'patient'],
+    ['Dra. Ana Gómez', 'dentista@apexflow.com', 'dentista123', 'dentist'],
+    ['Admin Operaciones', 'admin1@apexflow.com', 'admin456', 'admin'],
+    ['Admin Financiero', 'admin2@apexflow.com', 'admin789', 'admin'],
+    ['Admin Soporte', 'admin3@apexflow.com', 'admin101', 'admin'],
+    ['Admin Calidad', 'admin4@apexflow.com', 'admin202', 'admin'],
     ['María López', 'paciente1@apexflow.com', 'paciente123', 'patient'],
     ['Carlos Ruiz', 'paciente2@apexflow.com', 'paciente456', 'patient'],
     ['Lucía García', 'paciente3@apexflow.com', 'paciente789', 'patient'],
     ['Mateo Silva', 'paciente4@apexflow.com', 'paciente101', 'patient'],
     ['Sofía Díaz', 'paciente5@apexflow.com', 'paciente202', 'patient'],
-    ['Dra. Ana Gómez', 'dentista1@apexflow.com', 'dentista123', 'dentist'],
-    ['Dr. Javier Torres', 'dentista2@apexflow.com', 'dentista456', 'dentist'],
-    ['Dra. Sofía Ramírez', 'dentista3@apexflow.com', 'dentista789', 'dentist'],
-    ['Dr. Daniel Ruiz', 'dentista4@apexflow.com', 'dentista101', 'dentist'],
-    ['Dra. Valeria León', 'dentista5@apexflow.com', 'dentista202', 'dentist']
+    ['Dr. Javier Torres', 'dentista1@apexflow.com', 'dentista456', 'dentist'],
+    ['Dra. Sofía Ramírez', 'dentista2@apexflow.com', 'dentista789', 'dentist'],
+    ['Dr. Daniel Ruiz', 'dentista3@apexflow.com', 'dentista101', 'dentist'],
+    ['Dra. Valeria León', 'dentista4@apexflow.com', 'dentista202', 'dentist']
   ];
 
   const existingEmails = new Set((await all('SELECT email FROM users')).map((row) => row.email));

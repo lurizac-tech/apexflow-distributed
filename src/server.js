@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
+const { initDatabase, findUserByEmail, all, db } = require('./db');
 const { enqueueJob, startWorker, getJobStats, activeWorkers } = require('./worker');
 
 dotenv.config();
@@ -99,6 +100,45 @@ async function withLock(lockKey, callback) {
     release();
     resourceLocks.delete(lockKey);
   }
+}
+
+async function hydrateUsersFromDb() {
+  const rows = await all('SELECT * FROM users ORDER BY id');
+  users.clear();
+  rows.forEach((row) => {
+    users.set(String(row.email).toLowerCase(), {
+      id: String(row.id),
+      name: row.name,
+      email: row.email,
+      password: row.password,
+      role: row.role
+    });
+  });
+}
+
+async function hydrateAppointmentsFromDb() {
+  const rows = await all('SELECT * FROM citas ORDER BY fecha, hora');
+  appointments.clear();
+  rows.forEach((row) => {
+    appointments.set(String(row.id), {
+      id: String(row.id),
+      patientId: row.paciente_id ? String(row.paciente_id) : null,
+      patientName: row.paciente_nombre,
+      doctor: row.odontologo,
+      specialty: row.especialidad,
+      date: row.fecha,
+      time: row.hora,
+      reason: row.motivo || 'Consulta general',
+      status: row.estado || 'confirmed',
+      createdAt: new Date().toISOString()
+    });
+  });
+}
+
+async function ensureDbState() {
+  await initDatabase();
+  await hydrateUsersFromDb();
+  await hydrateAppointmentsFromDb();
 }
 
 function getDoctorAvailability(doctor, date) {
@@ -221,74 +261,102 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
     return res.status(400).json({ ok: false, message: 'Email y password son obligatorios.' });
   }
 
-  const user = users.get(String(email).toLowerCase());
-  if (!user || user.password !== String(password)) {
-    return res.status(401).json({ ok: false, message: 'Credenciales inválidas.' });
+  try {
+    await ensureDbState();
+    const user = users.get(String(email).toLowerCase()) || (await findUserByEmail(String(email).toLowerCase()));
+
+    if (!user || user.password !== String(password)) {
+      return res.status(401).json({ ok: false, message: 'Credenciales inválidas.' });
+    }
+
+    const safeUser = sanitizeUser({ ...user, id: String(user.id ?? user.user_id ?? user._id) });
+    const token = generateToken(safeUser);
+
+    return res.json({
+      ok: true,
+      token,
+      user: safeUser,
+      message: 'Login exitoso'
+    });
+  } catch (error) {
+    console.error('Login DB error:', error);
+    return res.status(500).json({ ok: false, message: 'No fue posible autenticar con la base de datos.' });
   }
-
-  const token = generateToken(user);
-
-  return res.json({
-    ok: true,
-    token,
-    user: sanitizeUser(user),
-    message: 'Login exitoso'
-  });
 });
 
-app.get('/api/auth/me', verificarJWT, (req, res) => {
-  const user = Array.from(users.values()).find((item) => item.email === req.user.email);
+app.get('/api/auth/me', verificarJWT, async (req, res) => {
+  try {
+    await ensureDbState();
+    const user = Array.from(users.values()).find((item) => item.email === req.user.email) || await findUserByEmail(String(req.user.email).toLowerCase());
 
-  if (!user) {
-    return res.status(404).json({ ok: false, message: 'Usuario no encontrado en el gateway.' });
+    if (!user) {
+      return res.status(404).json({ ok: false, message: 'Usuario no encontrado en el gateway.' });
+    }
+
+    return res.json({ ok: true, user: sanitizeUser({ ...user, id: String(user.id ?? user.user_id ?? user._id) }) });
+  } catch (error) {
+    console.error('Auth me DB error:', error);
+    return res.status(500).json({ ok: false, message: 'No fue posible recuperar el usuario desde la base de datos.' });
   }
-
-  return res.json({ ok: true, user: sanitizeUser(user) });
 });
 
-app.get('/api/citas/disponibilidad', verificarJWT, (req, res) => {
+app.get('/api/citas/disponibilidad', verificarJWT, async (req, res) => {
   const { doctor, date } = req.query;
 
   if (!doctor || !date) {
     return res.status(400).json({ ok: false, message: 'doctor y date son requeridos.' });
   }
 
-  const slots = getDoctorAvailability(String(doctor), String(date));
+  try {
+    await hydrateAppointmentsFromDb();
+    const slots = getDoctorAvailability(String(doctor), String(date));
 
-  return res.json({ ok: true, doctor: String(doctor), date: String(date), slots });
+    return res.json({ ok: true, doctor: String(doctor), date: String(date), slots });
+  } catch (error) {
+    console.error('Disponibilidad DB error:', error);
+    return res.status(500).json({ ok: false, message: 'No fue posible consultar la disponibilidad.' });
+  }
 });
 
-app.get('/api/citas', verificarJWT, (req, res) => {
-  const list = Array.from(appointments.values())
-    .filter((appointment) => appointment.status !== 'cancelled')
-    .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
-    .map(buildAppointmentPayload);
+app.get('/api/citas', verificarJWT, async (req, res) => {
+  try {
+    await hydrateAppointmentsFromDb();
+    const list = Array.from(appointments.values())
+      .filter((appointment) => appointment.status !== 'cancelled')
+      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
+      .map(buildAppointmentPayload);
 
-  return res.json({ ok: true, citas: list });
+    return res.json({ ok: true, citas: list });
+  } catch (error) {
+    console.error('List citas DB error:', error);
+    return res.status(500).json({ ok: false, message: 'No fue posible recuperar las citas desde la base de datos.' });
+  }
 });
 
 app.post('/api/citas', verificarJWT, async (req, res) => {
   const { doctor, date, time, specialty, reason } = req.body || {};
-  const patient = Array.from(users.values()).find((item) => item.email === req.user.email);
-
-  if (!patient) {
-    return res.status(404).json({ ok: false, message: 'Paciente no encontrado.' });
-  }
-
-  if (!doctor || !date || !time || !specialty) {
-    return res.status(400).json({ ok: false, message: 'doctor, date, time y specialty son requeridos.' });
-  }
-
-  const lockKey = `${doctor}|${date}|${time}`;
 
   try {
+    await ensureDbState();
+    const patient = Array.from(users.values()).find((item) => item.email === req.user.email) || await findUserByEmail(String(req.user.email).toLowerCase());
+
+    if (!patient) {
+      return res.status(404).json({ ok: false, message: 'Paciente no encontrado.' });
+    }
+
+    if (!doctor || !date || !time || !specialty) {
+      return res.status(400).json({ ok: false, message: 'doctor, date, time y specialty son requeridos.' });
+    }
+
+    const lockKey = `${doctor}|${date}|${time}`;
+
     const cita = await withLock(lockKey, async () => {
       const duplicate = Array.from(appointments.values()).find(
         (item) => item.doctor === doctor && item.date === date && item.time === time && item.status !== 'cancelled'
@@ -300,9 +368,9 @@ app.post('/api/citas', verificarJWT, async (req, res) => {
         throw error;
       }
 
-          const appointment = {
+      const appointment = {
         id: uid('apt'),
-        patientId: patient.id,
+        patientId: String(patient.id),
         patientName: patient.name,
         doctor,
         specialty,
@@ -312,6 +380,12 @@ app.post('/api/citas', verificarJWT, async (req, res) => {
         status: 'confirmed',
         createdAt: new Date().toISOString()
       };
+
+      await db.query(
+        `INSERT INTO citas (paciente_id, paciente_nombre, odontologo, especialidad, fecha, hora, motivo, estado)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [Number(appointment.patientId) || 0, appointment.patientName, appointment.doctor, appointment.specialty, appointment.date, appointment.time, appointment.reason, appointment.status]
+      );
 
       appointments.set(appointment.id, appointment);
 
@@ -345,31 +419,39 @@ app.post('/api/citas', verificarJWT, async (req, res) => {
   }
 });
 
-app.patch('/api/citas/:id/cancelar', verificarJWT, (req, res) => {
+app.patch('/api/citas/:id/cancelar', verificarJWT, async (req, res) => {
   const { id } = req.params;
-  const appointment = appointments.get(id);
 
-  if (!appointment) {
-    return res.status(404).json({ ok: false, message: 'Cita no encontrada.' });
+  try {
+    await hydrateAppointmentsFromDb();
+    const appointment = appointments.get(id);
+
+    if (!appointment) {
+      return res.status(404).json({ ok: false, message: 'Cita no encontrada.' });
+    }
+
+    if (appointment.patientId !== req.user.sub && req.user.role !== 'admin') {
+      return res.status(403).json({ ok: false, message: 'No tienes permiso para cancelar esta cita.' });
+    }
+
+    appointment.status = 'cancelled';
+    await db.query('UPDATE citas SET estado = $1 WHERE id = $2', ['cancelled', Number(id)]);
+
+    enqueueJob({
+      id: `job_cancel_${appointment.id}`,
+      type: 'notification',
+      recipient: appointment.patientId,
+      subject: 'Cita cancelada',
+      message: `La cita del ${appointment.date} a las ${appointment.time} fue cancelada.`,
+      data: { appointmentId: appointment.id },
+      delayMs: 800
+    });
+
+    return res.json({ ok: true, message: 'Cita cancelada correctamente.', cita: buildAppointmentPayload(appointment) });
+  } catch (error) {
+    console.error('Cancel cita DB error:', error);
+    return res.status(500).json({ ok: false, message: 'No fue posible cancelar la cita.' });
   }
-
-  if (appointment.patientId !== req.user.sub && req.user.role !== 'admin') {
-    return res.status(403).json({ ok: false, message: 'No tienes permiso para cancelar esta cita.' });
-  }
-
-  appointment.status = 'cancelled';
-
-  enqueueJob({
-    id: `job_cancel_${appointment.id}`,
-    type: 'notification',
-    recipient: appointment.patientId,
-    subject: 'Cita cancelada',
-    message: `La cita del ${appointment.date} a las ${appointment.time} fue cancelada.`,
-    data: { appointmentId: appointment.id },
-    delayMs: 800
-  });
-
-  return res.json({ ok: true, message: 'Cita cancelada correctamente.', cita: buildAppointmentPayload(appointment) });
 });
 
 app.get('/api/notifications', verificarJWT, (req, res) => {
@@ -442,336 +524,26 @@ app.use((error, req, res, next) => {
 
 startWorker({ pollIntervalMs: 800 });
 
-app.listen(PORT, () => {
-  console.log(`ApexFlow Distributed API Gateway running on http://localhost:${PORT}`);
-  console.log('JWT secret configured:', JWT_SECRET ? 'yes' : 'no');
-});
-
-module.exports = { app, users, appointments, getDoctorAvailability, withLock, verifyJWT: verificarJWT };
-
-app.post('/api/historial', verificarJWT, async (req, res) => {
-  await dbReady;
-  const { paciente, diagnostico, observaciones } = req.body;
-
-  if (!paciente || !diagnostico || !observaciones) {
-    return res.status(400).json({ ok: false, message: 'Paciente, diagnóstico y observaciones son obligatorios.' });
-  }
-
-  if (req.user.role !== 'dentist' && req.user.role !== 'admin') {
-    return res.status(403).json({ ok: false, message: 'Solo el odontólogo o administrador puede registrar notas clínicas.' });
-  }
-
-  const doctorName = req.user.name || 'Odontólogo';
-  const patientRecord = users.find((user) => user.name === paciente || user.email === paciente);
-  const result = await run(
-    'INSERT INTO historial (paciente, paciente_id, odontologo, odontologo_id, diagnostico, observaciones) VALUES ($1, $2, $3, $4, $5, $6)',
-    [paciente, patientRecord ? patientRecord.id : null, doctorName, req.user.id, diagnostico, observaciones]
-  );
-
-  const note = {
-    id: String(result.id),
-    paciente,
-    pacienteId: patientRecord ? patientRecord.id : null,
-    odontologo: doctorName,
-    diagnostico,
-    observaciones,
-    createdAt: new Date().toISOString()
-  };
-
-  return res.status(201).json({
-    ok: true,
-    message: 'Nota clínica registrada correctamente.',
-    note
-  });
-});
-
-app.get('/api/projects', verificarJWT, async (req, res) => {
-  await dbReady;
-  return res.json({ ok: true, data: projects, total: projects.length });
-});
-
-app.post('/api/projects', verificarJWT, async (req, res) => {
-  await dbReady;
-  const { name, description } = req.body;
-  if (!name) {
-    return res.status(400).json({ ok: false, message: 'El nombre del proyecto es obligatorio.' });
-  }
-
-  const project = {
-    id: `proj_${Date.now()}`,
-    name,
-    description: description || '',
-    status: 'active',
-    ownerId: req.user.id,
-    tasks: []
-  };
-
-  projects.push(project);
-  return res.status(201).json({ ok: true, message: 'Proyecto creado correctamente.', project });
-});
-
-app.get('/api/projects/:projectId', verificarJWT, async (req, res) => {
-  await dbReady;
-  const project = projects.find((item) => item.id === req.params.projectId);
-  if (!project) {
-    return res.status(404).json({ ok: false, message: 'Proyecto no encontrado.' });
-  }
-
-  return res.json({ ok: true, project });
-});
-
-app.post('/api/projects/:projectId/tasks', verificarJWT, async (req, res) => {
-  await dbReady;
-  const { projectId } = req.params;
-  const { title, priority, status } = req.body;
-  const project = projects.find((item) => item.id === projectId);
-  if (!project) {
-    return res.status(404).json({ ok: false, message: 'Proyecto no encontrado.' });
-  }
-  if (!title) {
-    return res.status(400).json({ ok: false, message: 'El título de la tarea es obligatorio.' });
-  }
-
-  const newTask = { id: `task_${Date.now()}`, title, status: status || 'pending', priority: priority || 'medium', assignee: req.user.email };
-  project.tasks.push(newTask);
-  return res.status(201).json({ ok: true, message: 'Tarea creada correctamente.', task: newTask });
-});
-
-app.patch('/api/projects/:projectId/tasks/:taskId', verificarJWT, async (req, res) => {
-  await dbReady;
-  const { projectId, taskId } = req.params;
-  const { status, title, priority } = req.body;
-  const project = projects.find((item) => item.id === projectId);
-  if (!project) {
-    return res.status(404).json({ ok: false, message: 'Proyecto no encontrado.' });
-  }
-  const task = project.tasks.find((item) => item.id === taskId);
-  if (!task) {
-    return res.status(404).json({ ok: false, message: 'Tarea no encontrada.' });
-  }
-
-  if (title) task.title = title;
-  if (status) task.status = status;
-  if (priority) task.priority = priority;
-
-  return res.json({ ok: true, message: 'Tarea actualizada.', task });
-});
-
-app.delete('/api/projects/:projectId/tasks/:taskId', verificarJWT, async (req, res) => {
-  await dbReady;
-  const { projectId, taskId } = req.params;
-  const project = projects.find((item) => item.id === projectId);
-  if (!project) {
-    return res.status(404).json({ ok: false, message: 'Proyecto no encontrado.' });
-  }
-
-  const taskIndex = project.tasks.findIndex((item) => item.id === taskId);
-  if (taskIndex === -1) {
-    return res.status(404).json({ ok: false, message: 'Tarea no encontrada.' });
-  }
-
-  project.tasks.splice(taskIndex, 1);
-  return res.json({ ok: true, message: 'Tarea eliminada correctamente.' });
-});
-
-app.get('/api/dashboard', verificarJWT, async (req, res) => {
-  await dbReady;
-  await reloadData();
-  const totalProjects = projects.length;
-  const totalTasks = projects.reduce((sum, project) => sum + project.tasks.length, 0);
-  const completedTasks = projects.reduce((sum, project) => sum + project.tasks.filter((task) => task.status === 'done').length, 0);
-  const pendingTasks = projects.reduce((sum, project) => sum + project.tasks.filter((task) => task.status === 'pending').length, 0);
-
-  return res.json({
-    ok: true,
-    metrics: {
-      totalProjects,
-      totalTasks,
-      completedTasks,
-      pendingTasks,
-      activeUsers: users.length,
-      completionRate: totalTasks === 0 ? 0 : ((completedTasks / totalTasks) * 100).toFixed(2)
-    }
-  });
-});
-
-app.get('/api/disponibilidad', verificarJWT, async (req, res) => {
-  await dbReady;
-  const { odontologo, fecha } = req.query;
-
-  if (!odontologo || !fecha) {
-    return res.status(400).json({ ok: false, message: 'Se requieren odontólogo y fecha.' });
-  }
-
-  const disponibilidad = await obtenerDisponibilidad(odontologo, fecha);
-  return res.json({ ok: true, odontologo, fecha, disponibilidad });
-});
-
-app.get('/api/citas', verificarJWT, async (req, res) => {
-  await dbReady;
-  await reloadData();
-  const usuario = users.find((item) => item.id === req.user.id);
-  if (!usuario) {
-    return res.status(404).json({ ok: false, message: 'Usuario no encontrado.' });
-  }
-
-  let lista = citas;
-  if (usuario.role === 'patient') {
-    lista = citas.filter((cita) => cita.pacienteId === usuario.id);
-  }
-  if (usuario.role === 'dentist') {
-    lista = citas.filter((cita) => cita.odontologo === usuario.name);
-  }
-
-  return res.json({ ok: true, total: lista.length, citas: lista });
-});
-
-app.get('/api/admin/citas', verificarJWT, async (req, res) => {
-  await dbReady;
-  await reloadData();
-  const usuario = users.find((item) => item.id === req.user.id);
-  if (!usuario || (usuario.role !== 'admin' && usuario.role !== 'dentist')) {
-    return res.status(403).json({ ok: false, message: 'Acceso no autorizado.' });
-  }
-
-  let lista = citas;
-  if (usuario.role === 'dentist') {
-    lista = citas.filter((cita) => cita.odontologo === usuario.name);
-  }
-
-  return res.json({ ok: true, total: lista.length, citas: lista.map(parseCita) });
-});
-
-app.post('/api/citas', verificarJWT, async (req, res) => {
-  await dbReady;
-  const { odontologo, fecha, hora, motivo, especialidad } = req.body;
-  const usuario = users.find((item) => item.id === req.user.id);
-
-  if (!usuario) {
-    return res.status(404).json({ ok: false, message: 'Usuario no encontrado.' });
-  }
-
-  if (!odontologo || !fecha || !hora) {
-    return res.status(400).json({ ok: false, message: 'Faltan datos de la cita.' });
-  }
-
-  const conflicto = await get('SELECT id FROM citas WHERE odontologo = $1 AND fecha = $2 AND hora = $3', [odontologo, fecha, hora]);
-  if (conflicto) {
-    return res.status(409).json({ ok: false, message: 'Conflicto de horario: el odontólogo ya tiene esa hora reservada.' });
-  }
-
-  const result = await run(
-    'INSERT INTO citas (paciente_id, paciente_nombre, odontologo, especialidad, fecha, hora, motivo, estado) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-    [usuario.id, usuario.name, odontologo, especialidad || 'Consulta general', fecha, hora, motivo || 'Consulta general', 'Confirmada']
-  );
-
-  const nuevaCita = {
-    id: String(result.id),
-    pacienteId: usuario.id,
-    pacienteNombre: usuario.name,
-    odontologo,
-    especialidad: especialidad || 'Consulta general',
-    fecha,
-    hora,
-    motivo: motivo || 'Consulta general',
-    estado: 'Confirmada'
-  };
-
-  enqueueMessage({
-    type: 'email',
-    title: 'Correo automático enviado',
-    message: `Cita confirmada para ${usuario.name} con ${odontologo} el ${fecha} a las ${hora}.`,
-    recipient: usuario.email,
-    status: 'queued'
-  });
-
-  simulateQueueDelivery();
-  citas = await all('SELECT * FROM citas ORDER BY fecha ASC, hora ASC');
-  return res.status(201).json({
-    ok: true,
-    message: 'Reserva confirmada correctamente. El bloque de horario desaparece automáticamente para evitar reservas dobles.',
-    cita: nuevaCita,
-    queue: messageQueue.slice(0, 3)
-  });
-});
-
-app.patch('/api/citas/:id', verificarJWT, async (req, res) => {
-  await dbReady;
-  const { id } = req.params;
-  const { fecha, hora, motivo, estado } = req.body;
-
-  const cita = await get('SELECT * FROM citas WHERE id = $1', [id]);
-  if (!cita) {
-    return res.status(404).json({ ok: false, message: 'Cita no encontrada.' });
-  }
-
-  if (req.user.role !== 'admin' && cita.paciente_id !== req.user.id) {
-    return res.status(403).json({ ok: false, message: 'No tienes permisos para editar esta cita.' });
-  }
-
-  const nextFecha = fecha || cita.fecha;
-  const nextHora = hora || cita.hora;
-  const nextMotivo = motivo || cita.motivo;
-  const nextEstado = estado || cita.estado;
-
-  await run(
-    'UPDATE citas SET fecha = $1, hora = $2, motivo = $3, estado = $4 WHERE id = $5',
-    [nextFecha, nextHora, nextMotivo, nextEstado, id]
-  );
-
-  const updated = await get('SELECT * FROM citas WHERE id = $1', [id]);
-  citas = await all('SELECT * FROM citas ORDER BY fecha ASC, hora ASC');
-
-  return res.json({ ok: true, message: 'Cita actualizada correctamente.', cita: parseCita(updated) });
-});
-
-app.delete('/api/citas/:id', verificarJWT, async (req, res) => {
-  await dbReady;
-  const { id } = req.params;
-
-  const cita = await get('SELECT * FROM citas WHERE id = $1', [id]);
-  if (!cita) {
-    return res.status(404).json({ ok: false, message: 'Cita no encontrada.' });
-  }
-
-  if (req.user.role !== 'admin' && cita.paciente_id !== req.user.id) {
-    return res.status(403).json({ ok: false, message: 'No tienes permisos para cancelar esta cita.' });
-  }
-
-  await run('UPDATE citas SET estado = $1 WHERE id = $2', ['Cancelada', id]);
-  citas = await all('SELECT * FROM citas ORDER BY fecha ASC, hora ASC');
-
-  return res.json({ ok: true, message: 'Cita cancelada correctamente.' });
-});
-
-app.get('/api/notifications', verificarJWT, async (req, res) => {
-  await dbReady;
-  const notifications = [
-    { id: 'n_001', userId: req.user.id, message: 'Su cita fue confirmada correctamente.', read: false, createdAt: new Date().toISOString() },
-    { id: 'n_002', userId: req.user.id, message: 'El sistema de notificaciones de la nube está operativo.', read: true, createdAt: new Date().toISOString() }
-  ];
-
-  return res.json({ ok: true, data: notifications, unread: notifications.filter((item) => !item.read).length });
-});
-
-app.get('/api/cloud/status', verificarJWT, async (req, res) => {
-  await dbReady;
-  return res.json({ ok: true, cloud, uptime: '99.99%', message: 'Arquitectura cloud simulada funcionando correctamente.' });
-});
-
-app.use((req, res) => {
-  res.status(404).json({ ok: false, message: 'Ruta no encontrada.' });
-});
-
-if (require.main === module) {
-  dbReady.then(() => {
+async function startServer() {
+  try {
+    await ensureDbState();
     app.listen(PORT, () => {
-      console.log(`ApexFlow Server running on http://localhost:${PORT}`);
+      console.log(`ApexFlow Distributed API Gateway running on http://localhost:${PORT}`);
+      console.log('JWT secret configured:', JWT_SECRET ? 'yes' : 'no');
+      console.log('Database connected:', Boolean(process.env.DATABASE_URL));
     });
-  }).catch((error) => {
-    console.error('Error inicializando la base de datos:', error);
-    process.exit(1);
-  });
+  } catch (error) {
+    console.error('Database boot error:', error);
+    console.error('Falling back to in-memory mode, but Neon persistence is not active.');
+    app.listen(PORT, () => {
+      console.log(`ApexFlow Distributed API Gateway running on http://localhost:${PORT}`);
+      console.log('JWT secret configured:', JWT_SECRET ? 'yes' : 'no');
+    });
+  }
 }
 
-module.exports = app;
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, users, appointments, getDoctorAvailability, withLock, verifyJWT: verificarJWT };
