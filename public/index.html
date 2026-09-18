@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ApexFlow | SaaS Dental Cloud</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="brand">
+            <div class="brand-mark">A</div>
+            <div class="brand-copy">
+              <h1>ApexFlow</h1>
+              <span>SaaS Dental Cloud</span>
+            </div>
+          </div>
+
+          <div class="header-actions">
+            <button id="logoutBtn" class="ghost-btn hidden" type="button">Cerrar sesión</button>
+            <div class="status-badge">
+              <span class="status-dot"></span>
+              Sesión activa
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="main-layout">
+        <section class="login-card" id="loginCard">
+          <div class="auth-panel single-auth-panel">
+            <div class="auth-box minimal-auth-box">
+              <div class="auth-header minimal-header">
+                <div class="brand-mark compact-brand">A</div>
+                <h3>Iniciar sesión</h3>
+                <p>Accede a tu panel de trabajo</p>
+              </div>
+
+              <form id="loginForm" class="form-grid minimal-form-grid">
+                <div class="field">
+                  <label for="email">Correo electrónico</label>
+                  <input id="email" type="email" placeholder="usuario@apexflow.com" />
+                </div>
+
+                <div class="field">
+                  <label for="password">Contraseña</label>
+                  <input id="password" type="password" placeholder="••••••••" />
+                </div>
+
+                <button type="submit" class="primary-btn full-width-btn">Ingresar</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace" id="workspace">
+          <div class="api-gateway-banner" id="jwtFlowCard">
+            <div>
+              <span class="gateway-kicker">Patrón API Gateway</span>
+              <h4>Flujo de autenticación JWT</h4>
+            </div>
+            <div class="token-box">Authorization: Bearer <span id="jwtTokenPreview">sin token activo</span></div>
+          </div>
+
+          <div class="queue-panel" id="queuePanel">
+            <div class="queue-header">
+              <span class="gateway-kicker">Patrón Queue-Based</span>
+              <h4>Cola de mensajes</h4>
+            </div>
+            <ul id="queueList" class="queue-list">
+              <li>Sin mensajes en cola.</li>
+            </ul>
+          </div>
+
+          <div class="nav-tabs">
+            <button class="tab-btn active" data-tab="agenda">Agendar Cita</button>
+            <button class="tab-btn" data-tab="citas">Mis Citas</button>
+            <button class="tab-btn" data-tab="historial">Historial Clínico</button>
+            <button class="tab-btn" data-tab="admin">Administración</button>
+          </div>
+
+          <div class="tab-panel active" id="agenda-panel">
+            <div class="panel-grid">
+              <div class="card">
+                <h4>Reservar nueva cita</h4>
+
+                <div class="field-row">
+                  <div class="field">
+                    <label>Odontólogo</label>
+                    <select>
+                      <option>Dra. Ana Gómez</option>
+                      <option>Dr. Javier Torres</option>
+                      <option>Dra. Sofía Ramírez</option>
+                    </select>
+                  </div>
+
+                  <div class="field">
+                    <label>Especialidad</label>
+                    <select>
+                      <option>Endodoncia</option>
+                      <option>Ortodoncia</option>
+                      <option>Implantología</option>
+                      <option>Estética</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="field-row" style="margin-top: 16px;">
+                  <div class="field">
+                    <label>Fecha</label>
+                    <input type="date" value="2026-09-12" />
+                  </div>
+
+                  <div class="field">
+                    <label>Hora disponible</label>
+                    <select>
+                      <option>09:30 AM</option>
+                      <option>10:15 AM</option>
+                      <option>11:00 AM</option>
+                      <option>12:45 PM</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="action-row">
+                  <button class="primary-btn">Confirmar Reserva</button>
+                </div>
+              </div>
+
+              <div class="card">
+                <h4>Resumen</h4>
+                <div class="field">
+                  <label>Paciente</label>
+                  <input type="text" value="María López" />
+                </div>
+
+                <div class="field" style="margin-top: 14px;">
+                  <label>Motivo</label>
+                  <textarea>Revisión general y limpieza profesional.</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="citas-panel">
+            <div class="card">
+              <h4>Mis citas</h4>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Doctor</th>
+                      <th>Fecha</th>
+                      <th>Hora</th>
+                      <th>Servicio</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Dra. Ana Gómez</td>
+                      <td>12 Sep 2026</td>
+                      <td>09:30 AM</td>
+                      <td>Revisión</td>
+                      <td><span class="status-pill status-confirmed">Confirmada</span></td>
+                    </tr>
+                    <tr>
+                      <td>Dr. Luis Ramírez</td>
+                      <td>18 Sep 2026</td>
+                      <td>12:45 PM</td>
+                      <td>Implantología</td>
+                      <td><span class="status-pill status-cancelled">Cancelada</span></td>
+                    </tr>
+                    <tr>
+                      <td>Dra. Sofía Morales</td>
+                      <td>20 Sep 2026</td>
+                      <td>11:00 AM</td>
+                      <td>Ortodoncia</td>
+                      <td><span class="status-pill status-confirmed">Confirmada</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="historial-panel">
+            <div class="history-dashboard">
+              <div class="history-header">
+                <div>
+                  <span class="gateway-kicker">Historial clínico</span>
+                  <h4>Panel de evolución</h4>
+                </div>
+              </div>
+
+              <div class="history-summary" id="historialSummary">
+                <div class="summary-card accent">
+                  <span class="summary-label">Notas registradas</span>
+                  <strong>0</strong>
+                </div>
+                <div class="summary-card">
+                  <span class="summary-label">Última revisión</span>
+                  <strong>Sin registros</strong>
+                </div>
+                <div class="summary-card">
+                  <span class="summary-label">Paciente activo</span>
+                  <strong>—</strong>
+                </div>
+              </div>
+
+              <div class="panel-grid history-grid">
+                <div class="card">
+                  <h4>Registro clínico</h4>
+
+                  <div class="field-row">
+                    <div class="field">
+                      <label>Paciente</label>
+                      <input id="historialPaciente" type="text" value="María López" />
+                    </div>
+
+                    <div class="field">
+                      <label>Diagnóstico</label>
+                      <input id="historialDiagnostico" type="text" value="Gingivitis leve" />
+                    </div>
+                  </div>
+
+                  <div class="field" style="margin-top: 16px;">
+                    <label>Observaciones médicas</label>
+                    <textarea id="historialObservaciones">Se observa ligera inflamación gingival en zona inferior. Se recomienda profilaxis y control en 30 días.</textarea>
+                  </div>
+
+                  <div class="action-row">
+                    <button id="guardarDiagnosticoBtn" class="secondary-btn" type="button">Guardar Diagnóstico</button>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <h4>Evolución del paciente</h4>
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Fecha</th>
+                          <th>Paciente</th>
+                          <th>Diagnóstico</th>
+                          <th>Odontólogo</th>
+                          <th>Observación</th>
+                        </tr>
+                      </thead>
+                      <tbody id="historialTableBody">
+                        <tr>
+                          <td colspan="5">Sin registros clínicos disponibles.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="admin-panel">
+            <div class="card admin-card">
+              <div class="admin-header">
+                <div>
+                  <h4>Panel de administrador</h4>
+                  <p>Supervisión de citas, estados y gestión operativa.</p>
+                </div>
+                <button class="primary-btn" id="refreshAdminBtn">Actualizar</button>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Paciente</th>
+                      <th>Doctor</th>
+                      <th>Fecha</th>
+                      <th>Hora</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colspan="6">Cargando citas...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
